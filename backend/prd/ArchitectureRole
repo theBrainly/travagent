@@ -1,0 +1,35 @@
+╔══════════════════════════════════════════════════════════════╗
+║              ROLE HIERARCHY (Top → Bottom)                   ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║   SUPER_ADMIN (Level 5)                                      ║
+║   ├── Created via database seed / CLI only                   ║
+║   ├── Can create Admins                                      ║
+║   ├── Can manage everything                                  ║
+║   └── CANNOT be created via API signup                       ║
+║                                                              ║
+║   ADMIN (Level 4)                                            ║
+║   ├── Created by Super Admin only                            ║
+║   ├── Can approve/reject agent registrations                 ║
+║   ├── Can promote agents to Senior Agent                     ║
+║   ├── Can manage commissions, payments                       ║
+║   └── CANNOT be self-assigned                                ║
+║                                                              ║
+║   SENIOR_AGENT (Level 3)                                     ║
+║   ├── Promoted by Admin/Super Admin                          ║
+║   ├── Can manage own team of agents                          ║
+║   ├── Can process refunds                                    ║
+║   └── CANNOT be self-assigned                                ║
+║                                                              ║
+║   AGENT (Level 2)                                            ║
+║   ├── Default role on signup                                 ║
+║   ├── Requires admin approval to activate                    ║
+║   ├── Can manage own customers, bookings                     ║
+║   └── CANNOT promote self                                    ║
+║                                                              ║
+║   JUNIOR_AGENT (Level 1)                                     ║
+║   ├── Limited access                                         ║
+║   ├── Can only view, cannot delete                           ║
+║   └── Training/probation role                                ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝

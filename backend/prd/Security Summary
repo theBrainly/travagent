@@ -1,0 +1,66 @@
+╔════════════════════════════════════════════════════════════════╗
+║                    SECURITY RULES SUMMARY                      ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  1️⃣  SIGNUP SECURITY                                           ║
+║  ├── Role field is IGNORED during public signup                ║
+║  ├── All signups forced to role = 'agent'                     ║
+║  ├── Account is INACTIVE until admin approves                  ║
+║  └── Cannot login until approved                               ║
+║                                                                ║
+║  2️⃣  SUPER ADMIN CREATION                                      ║
+║  ├── Only via CLI seeder script                                ║
+║  ├── NOT possible via any API endpoint                         ║
+║  ├── Even admin CANNOT create super_admin                      ║
+║  └── Requires direct server/database access                    ║
+║                                                                ║
+║  3️⃣  ROLE ASSIGNMENT HIERARCHY                                  ║
+║  ├── Super Admin → can create Admin, Senior, Agent, Junior     ║
+║  ├── Admin → can create Senior, Agent, Junior (NOT Admin)      ║
+║  ├── Senior Agent → can create Agent, Junior                   ║
+║  ├── Agent → cannot create anyone                              ║
+║  ├── Nobody can assign role equal/above their own              ║
+║  └── Nobody can change their own role                          ║
+║                                                                ║
+║  4️⃣  TOKEN SECURITY                                             ║
+║  ├── JWT contains role but it's NOT trusted                    ║
+║  ├── Every request fetches REAL role from database             ║
+║  ├── Role mismatch between JWT and DB is logged                ║
+║  └── Token tampering is detected and blocked                   ║
+║                                                                ║
+║  5️⃣  API SECURITY LAYERS                                        ║
+║  ├── Layer 1: JWT token validation (auth middleware)            ║
+║  ├── Layer 2: Account active check                             ║
+║  ├── Layer 3: Role-based route access (authorize middleware)   ║
+║  ├── Layer 4: Permission-based checks (checkPermission)        ║
+║  ├── Layer 5: Resource ownership verification                  ║
+║  └── Layer 6: Hierarchy validation for role changes            ║
+║                                                                ║
+║  6️⃣  FRONTEND SECURITY                                          ║
+║  ├── No role selection on registration form                    ║
+║  ├── RoleGuard component hides unauthorized UI                 ║
+║  ├── Admin-only routes/buttons hidden for agents               ║
+║  └── Even if frontend hacked, backend rejects unauthorized     ║
+║                                                                ║
+║  7️⃣  SENSITIVE FIELDS PROTECTION                                ║
+║  ├── role, isActive, isVerified stripped from profile updates   ║
+║  ├── password never returned in API responses                  ║
+║  ├── totalEarnings, totalBookings cannot be manually set       ║
+║  └── refreshToken never exposed                                ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+FLOW:
+═════
+
+New User Signup → Forced to 'agent' → Account INACTIVE
+       ↓
+Admin sees pending list → Approves/Rejects
+       ↓
+Agent can now login → Has basic 'agent' permissions
+       ↓
+Admin promotes to 'senior_agent' → Gets more access
+       ↓
+Super Admin promotes to 'admin' → Gets admin access
+       ↓
+Super Admin role → CLI/DB only (NEVER via API)

@@ -1,0 +1,19 @@
+# 1. Install dependencies
+npm install
+
+# 2. Make sure MongoDB is running
+# MongoDB should be running on localhost:27017
+
+# 3. Seed the database
+npm run seed
+
+# 4. Start development server
+npm run dev
+
+# 5. Test the health endpoint
+curl http://localhost:5000/api/health
+
+# 6. Login with seeded credentials
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@travelplatform.com","password":"Admin@123456"}'

@@ -1,0 +1,76 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                    API ENDPOINTS REFERENCE                      ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  AUTH ROUTES                                                     ║
+║  POST   /api/auth/register        - Register new agent          ║
+║  POST   /api/auth/login           - Login agent                 ║
+║  GET    /api/auth/me              - Get logged in agent profile  ║
+║  POST   /api/auth/refresh-token   - Refresh JWT token           ║
+║  PUT    /api/auth/change-password - Change password              ║
+║  POST   /api/auth/logout          - Logout agent                ║
+║                                                                  ║
+║  AGENT ROUTES (Protected)                                        ║
+║  GET    /api/agents                  - Get all agents (Admin)    ║
+║  GET    /api/agents/dashboard/stats  - Dashboard statistics      ║
+║  GET    /api/agents/:id              - Get single agent          ║
+║  PUT    /api/agents/:id              - Update agent profile      ║
+║  PATCH  /api/agents/:id/role         - Update role (Super Admin) ║
+║  PATCH  /api/agents/:id/deactivate   - Deactivate agent (Admin) ║
+║  PATCH  /api/agents/:id/activate     - Activate agent (Admin)   ║
+║                                                                  ║
+║  CUSTOMER ROUTES (Protected)                                     ║
+║  GET    /api/customers              - Get all customers          ║
+║  POST   /api/customers              - Create customer            ║
+║  GET    /api/customers/stats/overview- Customer statistics       ║
+║  GET    /api/customers/:id          - Get single customer        ║
+║  PUT    /api/customers/:id          - Update customer            ║
+║  DELETE /api/customers/:id          - Delete customer            ║
+║                                                                  ║
+║  BOOKING ROUTES (Protected)                                      ║
+║  GET    /api/bookings               - Get all bookings           ║
+║  POST   /api/bookings               - Create booking             ║
+║  GET    /api/bookings/stats         - Booking statistics         ║
+║  GET    /api/bookings/:id           - Get single booking         ║
+║  PUT    /api/bookings/:id           - Update booking             ║
+║  DELETE /api/bookings/:id           - Delete booking             ║
+║  PATCH  /api/bookings/:id/status    - Update booking status      ║
+║                                                                  ║
+║  ITINERARY ROUTES (Protected)                                    ║
+║  GET    /api/itineraries            - Get all itineraries        ║
+║  POST   /api/itineraries            - Create itinerary           ║
+║  GET    /api/itineraries/templates  - Get templates              ║
+║  GET    /api/itineraries/:id        - Get single itinerary       ║
+║  PUT    /api/itineraries/:id        - Update itinerary           ║
+║  DELETE /api/itineraries/:id        - Delete itinerary           ║
+║  POST   /api/itineraries/:id/clone  - Clone itinerary           ║
+║  POST   /api/itineraries/:id/day-plans     - Add day plan       ║
+║  PUT    /api/itineraries/:id/day-plans/:dp - Update day plan    ║
+║  DELETE /api/itineraries/:id/day-plans/:dp - Delete day plan    ║
+║                                                                  ║
+║  PAYMENT ROUTES (Protected)                                      ║
+║  GET    /api/payments               - Get all payments           ║
+║  POST   /api/payments               - Process payment            ║
+║  GET    /api/payments/stats         - Payment statistics         ║
+║  GET    /api/payments/:id           - Get single payment         ║
+║  POST   /api/payments/:id/refund    - Process refund (Admin)    ║
+║                                                                  ║
+║  LEAD ROUTES (Protected)                                         ║
+║  GET    /api/leads                  - Get all leads              ║
+║  POST   /api/leads                  - Create lead                ║
+║  GET    /api/leads/stats            - Lead statistics            ║
+║  GET    /api/leads/:id              - Get single lead            ║
+║  PUT    /api/leads/:id              - Update lead                ║
+║  DELETE /api/leads/:id              - Delete lead                ║
+║  POST   /api/leads/:id/follow-ups   - Add follow-up             ║
+║  POST   /api/leads/:id/convert      - Convert lead to booking   ║
+║  PATCH  /api/leads/:id/assign       - Assign lead (Admin)       ║
+║                                                                  ║
+║  COMMISSION ROUTES (Protected)                                   ║
+║  GET    /api/commissions            - Get all commissions        ║
+║  GET    /api/commissions/summary    - Commission summary         ║
+║  GET    /api/commissions/:id        - Get single commission      ║
+║  PATCH  /api/commissions/:id/approve- Approve commission (Admin)║
+║  PATCH  /api/commissions/:id/pay    - Mark as paid (Admin)      ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝

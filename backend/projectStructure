@@ -1,0 +1,48 @@
+b2b-travel-platform/
+├── package.json
+├── .env
+├── server.js
+├── config/
+│   ├── db.js
+│   └── keys.js
+├── middleware/
+│   ├── auth.js
+│   ├── roleCheck.js
+│   ├── errorHandler.js
+│   └── validate.js
+├── models/
+│   ├── Agent.js
+│   ├── Customer.js
+│   ├── Booking.js
+│   ├── Itinerary.js
+│   ├── Payment.js
+│   ├── Lead.js
+│   └── Commission.js
+├── routes/
+│   ├── authRoutes.js
+│   ├── agentRoutes.js
+│   ├── customerRoutes.js
+│   ├── bookingRoutes.js
+│   ├── itineraryRoutes.js
+│   ├── paymentRoutes.js
+│   ├── leadRoutes.js
+│   └── commissionRoutes.js
+├── controllers/
+│   ├── authController.js
+│   ├── agentController.js
+│   ├── customerController.js
+│   ├── bookingController.js
+│   ├── itineraryController.js
+│   ├── paymentController.js
+│   ├── leadController.js
+│   └── commissionController.js
+├── services/
+│   ├── authService.js
+│   ├── bookingService.js
+│   ├── commissionService.js
+│   ├── paymentService.js
+│   └── leadService.js
+└── utils/
+    ├── apiResponse.js
+    ├── constants.js
+    └── helpers.js
