@@ -1,359 +1,583 @@
-<div align="center">
+# TravAgent - B2B Travel Operations Platform
 
-# ✈️ B2B Travel Agent Platform
+Production-style full-stack platform for travel agencies with secure RBAC, workflow automation, Redis-backed caching, background jobs, and event-driven service orchestration.
 
-### Enterprise-grade Travel Management System with Microservice Simulation, Role-Based Access Control, Background Jobs, and Advanced Commission Tracking.
+## Executive Summary
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue?style=for-the-badge)
-![Node](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-8.0-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-7.0-DC382D?style=for-the-badge&logo=redis&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![License](https://img.shields.io/badge/license-Private-red?style=for-the-badge)
+TravAgent is a backend-heavy business platform designed around operational control and role safety:
 
-</div>
+- Multi-role agent management with strict hierarchy enforcement.
+- Domain modules for bookings, customers, itineraries, leads, payments, commissions, notifications, and audits.
+- Dynamic DB-backed permissions (with Redis cache and hardcoded fallback).
+- Simulated microservice orchestration via service facades + internal event bus.
+- Background processing using cron + Bull queues.
+- React + TypeScript admin console with permission-driven navigation and performance optimizations.
 
----
-
-## 📋 Table of Contents
-
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Architecture & Design](#-architecture--design)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-- [Environment Variables](#-environment-variables)
-- [API Reference](#-api-reference)
-- [Microservice Simulation](#-microservice-simulation)
-- [Background Jobs](#-background-jobs)
-- [Role Hierarchy & RBAC](#-role-hierarchy--rbac)
-- [Security](#-security)
-- [Database Models](#-database-models)
-- [Frontend Pages](#-frontend-pages)
-- [Contributing](#-contributing)
+This repository is a **hybrid monolith**: one deployable backend runtime, but architected with service boundaries and event-driven contracts to support future extraction.
 
 ---
 
-## 🌟 Overview
+## System Architecture
 
-The **B2B Travel Agent Platform** is a comprehensive solution for managing the entire travel agency lifecycle. Beyond standard CRUD operations, it features a sophisticated **simulated microservice architecture**, **event-driven communication**, **background processing queues**, and a **dynamic permission matrix**.
+```mermaid
+flowchart LR
+    U["User Browser"] --> F["Frontend (React + Vite)"]
+    F -->|"HTTP /api"| O["API Orchestrator (Express)"]
 
-Designed for scalability and modularity, the system uses an orchestrator pattern to manage multiple logical services within a single runtime, providing the benefits of microservices (separation of concerns, independent scaling potential) without the operational overhead of managing distributed systems during development.
+    O --> S1["Auth Service Facade"]
+    O --> S2["Booking Service Facade"]
+    O --> S3["Payment Service Facade"]
+    O --> S4["Notification Service Facade"]
+    O --> S5["Analytics Service Facade"]
 
----
+    S1 --> M[("MongoDB")]
+    S2 --> M
+    S3 --> M
+    S4 --> M
+    S5 --> M
 
-## ✨ Key Features
+    O --> R[("Redis")]
+    O --> J["Job Runner (Cron + Bull)"]
+    O --> E["Event Bus"]
 
-### 🏢 Microservice Architecture (Simulated)
-- **Service Registry**: Dynamic service discovery and health monitoring.
-- **Event Bus**: Internal pub/sub system for decoupled service-to-service communication.
-- **Service Facades**: Modularized service entry points (Auth, Booking, Payment, Notification, Analytics).
-
-### ⚡ Background Processing
-- **Bull Queues**: Redis-backed queues for asynchronous tasks (Email Dispatch, Report Generation).
-- **Scheduled Cron Jobs**:
-  - `Booking Reminder`: Daily notifications for upcoming trips.
-  - `Stale Lead Cleanup`: Auto-archive inactive leads after 30 days.
-  - `Commission Calculation`: Hourly computation for completed bookings.
-  - `Daily Snapshot`: Nightly data aggregation for analytics.
-
-### 🔐 Advanced Security & RBAC
-- **Dynamic Permission Matrix**: Database-driven permissions with Redis caching (overrides hardcoded roles).
-- **Hierarchical Access**: 5-level role system (Super Admin → Junior Agent).
-- **6-Layer Security**: JWT, account status, role check, permission check, resource ownership, hierarchy validation.
-- **Audit Logging**: Comprehensive tracking of critical actions.
-
-### 📂 File Management
-- **Cloudinary Integration**: Secure file storage for documents, itineraries, and profiles.
-- **Document Metadata**: Track file types, sizes, and associations (Customer, Booking, etc.).
-
-### 🖼️ Core Business Modules
-- **Agent Management**: Registration, approval, role promotion, performance tracking.
-- **Customer CRM**: Detailed profiles, booking history, document wallet.
-- **Booking Engine**: Full lifecycle management (Draft → Confirmed → Completed), support for multiple trip types.
-- **Itinerary Builder**: Day-by-day planner with templates and cloning.
-- **Financials**: Payment processing (partial/full), refund workflows, automated commission tracking with tiered rates.
-- **Lead Pipeline**: Kanban-style lead tracking from inquiry to conversion.
-
-### 📊 Analytics & Dashboard
-- **Real-time Metrics**: Revenue, active bookings, conversion rates.
-- **Visual Analytics**: Interactive charts for sales performance and lead sources.
-
----
-
-## 🏗️ Architecture & Design
-
- The system implements a **Hybrid Monolith / Simulated Microservice** architecture:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     ORCHESTRATOR (server.js)                 │
-│  Mounts Services • Initializes Jobs • Global Middleware      │
-└──────────────┬───────────────────────────────┬──────────────┘
-               │                               │
-┌──────────────▼─────────────┐   ┌─────────────▼──────────────┐
-│      SERVICE REGISTRY      │   │         EVENT BUS          │
-│   Health & Discovery       │   │   Pub/Sub Communication    │
-└──────────────┬─────────────┘   └─────────────┬──────────────┘
-               │                               │
-      ┌────────┴───────────────────────────────┴────────┐
-      │                                                 │
-┌─────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
-│    AUTH    │  │  BOOKING   │  │  PAYMENT   │  │ ANALYTICS  │
-│  SERVICE   │  │  SERVICE   │  │  SERVICE   │  │  SERVICE   │
-└─────┬──────┘  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘
-      │               │               │               │
-┌─────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
-│  Mongodb   │  │  Mongodb   │  │  Mongodb   │  │  Mongodb   │
-│  (Agents)  │  │ (Bookings) │  │ (Payments) │  │  (Logs)    │
-└────────────┘  └────────────┘  └────────────┘  └────────────┘
+    E <--> S1
+    E <--> S2
+    E <--> S3
+    E <--> S4
+    E <--> S5
 ```
 
+### Runtime Components
+
+- **Orchestrator**: `backend/server.js`
+  - Loads middleware, mounts service facades, initializes Redis/Cloudinary/jobs, exposes health diagnostics.
+- **Service Registry**: `backend/shared/serviceRegistry.js`
+  - Tracks registered service modules and runs service-level health checks.
+- **Event Bus**: `backend/shared/eventBus.js`
+  - In-process pub/sub used for cross-domain workflows (booking -> payment -> notification/analytics).
+- **Background Jobs**: `backend/jobs/index.js`
+  - Starts cron tasks and Bull processors, reports job health in `/api/health`.
+
 ---
 
-## 🛠️ Tech Stack
+## Technology Stack
 
 ### Backend
-| Component | Technology | Description |
-|-----------|------------|-------------|
-| **Runtime** | Node.js | Core execution environment |
-| **Framework** | Express.js | REST API server & orchestrator |
-| **Database** | MongoDB + Mongoose | Data persistence & schema modeling |
-| **Caching** | Redis (ioredis) | Permission caching, session storage |
-| **Queue** | Bull | Background job processing |
-| **Scheduling** | node-cron | Recurring task automation |
-| **Storage** | Cloudinary | Cloud file storage |
-| **Security** | Helmet, CORS, Rate Limit | API security layers |
-| **Auth** | JWT, bcryptjs | Authentication & hashing |
+
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js |
+| HTTP Server | Express |
+| Data Layer | MongoDB + Mongoose |
+| Cache | Redis (`ioredis`) |
+| Queueing | Bull |
+| Scheduling | node-cron |
+| Auth | JWT + bcrypt |
+| Validation | express-validator |
+| Security | helmet, cors, express-rate-limit |
+| File Upload | multer + Cloudinary storage adapter |
 
 ### Frontend
-| Component | Technology | Description |
-|-----------|------------|-------------|
-| **Framework** | React 19 | UI library |
-| **Build Tool** | Vite | Fast development & building |
-| **Language** | TypeScript | Static typing & interface definitions |
-| **Styling** | TailwindCSS v4 | Utility-first styling |
-| **Routing** | React Router v7 | Client-side navigation |
-| **State** | React Context | Global state management |
-| **Charts** | Recharts | Data visualization |
-| **Icons** | Lucide React | Consistent iconography |
+
+| Layer | Technology |
+|---|---|
+| UI | React 19 |
+| Language | TypeScript |
+| Build Tool | Vite 7 |
+| Styling | Tailwind CSS 4 |
+| Charts | Recharts |
+| HTTP Client | Axios |
+| UX Utilities | react-hot-toast, lucide-react |
 
 ---
 
-## 📁 Project Structure
+## Role Hierarchy and RBAC
 
+Canonical role source: `backend/config/role.js`
+
+### Hierarchy
+
+| Role | Level |
+|---|---:|
+| `super_admin` | 5 |
+| `admin` | 4 |
+| `senior_agent` | 3 |
+| `agent` | 2 |
+| `junior_agent` | 1 |
+
+### Role Creation/Promotion Matrix
+
+| Acting Role | Allowed Targets |
+|---|---|
+| `super_admin` | `admin`, `senior_agent`, `agent`, `junior_agent` |
+| `admin` | `senior_agent`, `agent`, `junior_agent` |
+| `senior_agent` | `agent`, `junior_agent` |
+| `agent` | none |
+| `junior_agent` | none |
+
+### Critical Security Rules
+
+- Public signup is hard-forced to `agent` (`backend/services/authService.js`).
+- Super admin cannot be created through API signup.
+- JWT role is never trusted blindly; backend fetches fresh role from DB on each protected request (`backend/middleware/auth.js`).
+- Permission checks are dynamic and async (`backend/middleware/roleCheck.js` + `backend/services/permissionService.js`).
+
+### Dynamic Permission Engine
+
+- Permission model: `backend/models/Permission.js`
+- Endpoints:
+  - `GET /api/permissions`
+  - `GET /api/permissions/me`
+  - `GET /api/permissions/:role`
+  - `PUT /api/permissions/:role`
+  - `POST /api/permissions/reset`
+- Redis cache key prefix: `permissions:<role>`
+- Fallback behavior: if DB/cache check fails, hardcoded permission map is used.
+
+---
+
+## Core Domain Modules
+
+### Auth and Agent Governance
+
+- Registration, login, refresh token, password change, logout.
+- Approval workflow (`pending -> approved/rejected`).
+- Admin/super-admin agent approvals and role transitions.
+- Team assignment for senior-agent workflows.
+
+### Customer and Booking Operations
+
+- Customer lifecycle with ownership-aware access.
+- Booking lifecycle and status history.
+- Conflict-aware booking indexing.
+- Booking/customer file attachment support via uploads.
+
+### Lead Pipeline
+
+- Lead intake, status progression, follow-ups, assignment.
+- Conversion endpoint to booking.
+- Auto stale-lead cleanup job.
+
+### Payments and Commissions
+
+- Payment processing and refunds.
+- Commission generation and payout flow:
+  - `pending -> approved -> paid`
+- Role-gated approval and payout actions.
+
+### Notifications and Auditing
+
+- In-app notifications with optional simulated email dispatch.
+- Audit logs for critical and operational actions.
+- Admin-access audit analytics and filtering.
+
+### Analytics and Dashboard
+
+- Dashboard KPIs and recent activity.
+- Analytics overview + admin-level detail endpoints.
+- Daily snapshot cron for historical trending.
+
+---
+
+## Event-Driven Workflow Examples
+
+Published/subscribed events are defined in `backend/shared/eventBus.js`.
+
+### Booking Confirmation -> Commission
+
+1. Booking domain emits `BOOKING_CONFIRMED`.
+2. Payment service subscription checks for existing commission.
+3. Commission is created via `commissionService`.
+4. Cache invalidation and notifications are triggered by downstream actions.
+
+### Payment Completion -> Status + Notification + Analytics
+
+1. Payment domain emits `PAYMENT_COMPLETED`.
+2. Booking service subscription updates booking payment state.
+3. Notification service subscription sends in-app/email messages.
+4. Analytics service subscription records tracking event.
+
+---
+
+## API Design and Contracts
+
+### Base URL
+
+- Backend base: `http://localhost:<PORT>/api`
+- Frontend default expects: `VITE_BACKEND_URL=http://localhost:5001`
+
+### Standard Response Envelope
+
+Defined in `backend/utils/apiResponse.js`:
+
+```json
+{
+  "success": true,
+  "message": "Success",
+  "data": {},
+  "timestamp": "2026-02-15T00:00:00.000Z"
+}
 ```
+
+Paginated responses include:
+
+```json
+{
+  "success": true,
+  "count": 10,
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 5,
+    "totalRecords": 50,
+    "limit": 10
+  },
+  "data": []
+}
+```
+
+### High-Value Endpoint Groups
+
+- `auth`: `/api/auth/*`
+- `agents`: `/api/agents/*`
+- `customers`: `/api/customers/*`
+- `bookings`: `/api/bookings/*`
+- `itineraries`: `/api/itineraries/*`
+- `leads`: `/api/leads/*`
+- `payments`: `/api/payments/*`
+- `commissions`: `/api/commissions/*`
+- `notifications`: `/api/notifications/*`
+- `dashboard`: `/api/dashboard/*`
+- `analytics`: `/api/dashboard/analytics/*`
+- `audit`: `/api/audit-logs/*`
+- `uploads`: `/api/uploads/*`
+- `permissions`: `/api/permissions/*`
+- `cache admin`: `/api/cache/*`
+- `ops diagnostics`: `/api/health`, `/api/events/log`
+
+---
+
+## Caching Strategy (Redis)
+
+### What is Cached
+
+Implemented via `backend/middleware/cache.js` and `backend/services/cacheService.js`:
+
+- List endpoints and dashboard/analytics endpoints.
+- Cache keys include: endpoint prefix + agent id + normalized query string.
+
+### TTL Profiles
+
+- `SHORT`: 120s
+- `MEDIUM`: 300s
+- `LONG`: 600s
+- `AGENT_STATS`: 180s
+
+### Invalidation
+
+Pattern-based invalidation map by resource type:
+
+- `booking`, `lead`, `payment`, `customer`, `commission`, `agent`, `itinerary`
+
+### Debug Signals
+
+Cached responses include headers:
+
+- `X-Cache: HIT|MISS`
+- `X-Cache-Key: ...`
+
+### Graceful Degradation
+
+If Redis is unavailable or disabled (`CACHE_ENABLED=false`), API continues without cache.
+
+---
+
+## Background Jobs and Queues
+
+Job bootstrap: `backend/jobs/index.js`
+
+### Cron Jobs
+
+| Job | Schedule | Timezone | Purpose |
+|---|---|---|---|
+| Booking Reminder | `0 9 * * *` | `Asia/Kolkata` | Notify upcoming trips (7-day window). |
+| Stale Lead Cleanup | `0 0 * * *` | `Asia/Kolkata` | Auto-close inactive leads. |
+| Commission Calc | `0 * * * *` | `Asia/Kolkata` | Create missing commissions for eligible bookings. |
+| Daily Snapshot | `0 23 * * *` | `Asia/Kolkata` | Persist daily aggregate stats. |
+
+### Bull Queues
+
+- `email-queue` -> `jobs/processors/emailProcessor.js`
+- `report-queue` -> `jobs/processors/reportProcessor.js`
+
+If Redis queue is unavailable, email path falls back to synchronous simulation.
+
+---
+
+## Data Model Map
+
+Mongoose models (`backend/models`, 11 total):
+
+- `Agent`
+- `Permission`
+- `Customer`
+- `Booking`
+- `Lead`
+- `Payment`
+- `Commission`
+- `Itinerary`
+- `Notification`
+- `AuditLog`
+- `Document`
+
+### Notable Schema Characteristics
+
+- Indexing for search and conflict detection (e.g., bookings and leads).
+- Lifecycle status enums across booking/payment/lead/commission.
+- Reference-driven associations across all business entities.
+- `Document.linkedTo` polymorphic relation for file attachment by model and id.
+
+---
+
+## Frontend Architecture
+
+Frontend code: `frontend/src`
+
+### UI Composition
+
+- App shell and page orchestration: `frontend/src/App.tsx`
+- Layout and permission-driven nav: `frontend/src/components/Layout.tsx`
+- Auth + permission bootstrap context: `frontend/src/context/AuthContext.tsx`
+- API client adapters: `frontend/src/services/*.ts`
+
+### Implemented Pages (15)
+
+- Dashboard
+- Customers
+- Bookings
+- Itineraries
+- Leads
+- Payments
+- Commissions
+- Notifications
+- Audit Logs
+- Admin Settings
+- Agent Approvals
+- Permission Matrix
+- Login
+- Register
+- Pending Approval
+
+### Performance Patterns in Current Build
+
+- Route-level lazy loading in `App.tsx`.
+- Delayed skeleton rendering (`useDelayedLoading`) to avoid flicker on fast responses.
+- Debounced search (`useDebouncedValue`) on data-heavy pages.
+- Vite chunking for chart bundle separation (`recharts` split chunk).
+
+---
+
+## Security Controls
+
+- `helmet` hardened headers.
+- CORS configured via `CLIENT_URL`.
+- Global and auth-specific rate limits.
+- Request validation with `express-validator`.
+- Centralized error normalization.
+- Audit trails for critical state transitions.
+- Ownership and hierarchy checks in role middleware.
+
+---
+
+## Repository Structure
+
+```text
 travel/
-├── backend/
-│   ├── jobs/                         # Background Processing
-│   │   ├── cron/                     #   Scheduled tasks (Reminders, Cleanup)
-│   │   ├── processors/               #   Job logic (Email, Reports)
-│   │   ├── queues/                   #   Bull queue definitions
-│   │   └── index.js                  #   Job runner
-│   │
-│   ├── services/                     # Business Logic & Facades
-│   │   ├── auth/index.js             #   Auth Service Facade
-│   │   ├── booking/index.js          #   Booking Service Facade
-│   │   ├── payment/index.js          #   Payment Service Facade
-│   │   ├── analytics/index.js        #   Analytics Service Facade
-│   │   ├── notification/index.js     #   Notification Service Facade
-│   │   ├── permissionService.js      #   Dynamic Permissions
-│   │   └── ... (core services)
-│   │
-│   ├── shared/                       # Shared Modules
-│   │   ├── eventBus.js               #   Event Emitter (Pub/Sub)
-│   │   └── serviceRegistry.js        #   Service Health & Discovery
-│   │
-│   ├── controllers/                  # Request Handlers
-│   ├── models/                       # Mongoose Schemas (11 models)
-│   ├── routes/                       # Express Routes
-│   ├── middleware/                   # Auth, RBAC, Upload, Validation
-│   ├── config/                       # DB, Redis, Cloudinary Config
-│   ├── seeders/                      # Data Seeding
-│   └── server.js                     # Orchestrator Entry Point
-│
-└── frontend/
-    ├── src/
-    │   ├── pages/                    # 14 Application Pages
-    │   ├── components/               # Reusable UI Components
-    │   ├── context/                  # AuthContext
-    │   ├── services/                 # API Clients
-    │   └── types/                    # TypeScript Interfaces
-    └── ...
+|- backend/
+|  |- config/                 # DB, Redis, Cloudinary, role config
+|  |- controllers/            # HTTP handlers
+|  |- middleware/             # Auth, RBAC, cache, upload, validation, errors
+|  |- models/                 # Mongoose schemas
+|  |- routes/                 # API route definitions
+|  |- services/               # Domain services + facades
+|  |- shared/                 # eventBus + serviceRegistry
+|  |- jobs/                   # cron, queues, processors
+|  |- scripts/                # migration + regression/smoke suites
+|  |- seeders/                # bootstrapping data
+|  `- server.js               # orchestrator entrypoint
+|- frontend/
+|  |- src/components/         # reusable UI
+|  |- src/context/            # auth and permission state
+|  |- src/hooks/              # debounced and delayed loading hooks
+|  |- src/pages/              # application views
+|  |- src/services/           # API integrations
+|  |- src/types/              # TS contracts
+|  |- src/App.tsx             # app composition + lazy routing
+|  `- vite.config.ts          # bundling strategy
+`- README.md
 ```
 
 ---
 
-## 🚀 Getting Started
+## Local Development
 
 ### Prerequisites
-- **Node.js** v18+
-- **MongoDB** (Atlas or local)
-- **Redis** (Required for Queues & Caching)
 
-### Backend Setup
-1.  **Navigate to backend**:
-    ```bash
-    cd backend
-    ```
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
-3.  **Configure Environment**:
-    Copy `.env.example` to `.env` and fill in your credentials (see below).
-4.  **Seed Database**:
-    ```bash
-    npm run create-super-admin  # Creates initial super admin
-    npm run seed                # (Optional) Populates sample data
-    ```
-5.  **Start Server**:
-    ```bash
-    npm run dev
-    ```
-    *The orchestrator will start all services, connect to Redis/Mongo, and initialize cron jobs.*
+- Node.js 18+
+- MongoDB (local or Atlas)
+- Redis (recommended; app can run without it)
 
-### Frontend Setup
-1.  **Navigate to frontend**:
-    ```bash
-    cd frontend
-    ```
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
-3.  **Start Dev Server**:
-    ```bash
-    npm run dev
-    ```
+### 1) Backend Setup
 
-### Default Credentials
-| Role | Email | Password |
-|------|-------|----------|
-| **Super Admin** | `superadmin@travelplatform.com` | `SuperAdmin@123456` |
+```bash
+cd backend
+npm install
+```
 
----
-
-## 🔑 Environment Variables
-
-Create `backend/.env`:
+Create `.env`:
 
 ```env
-# Application
 NODE_ENV=development
 PORT=5001
+CLIENT_URL=http://localhost:5173
 
-# Database
-MONGO_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/travel
+MONGO_URI=mongodb://localhost:27017/travel
 
-# Authentication
-JWT_SECRET=<secret>
+JWT_SECRET=change_me
 JWT_EXPIRE=7d
-JWT_REFRESH_SECRET=<refresh_secret>
+JWT_REFRESH_SECRET=change_me_refresh
 JWT_REFRESH_EXPIRE=30d
 
-# Redis (Caching & Queues)
-REDIS_URL=redis://<user>:<pass>@<host>:<port>
+REDIS_URL=redis://localhost:6379
 CACHE_ENABLED=true
 
-# Cloudinary (File Uploads)
-CLOUDINARY_CLOUD_NAME=<cloud_name>
-CLOUDINARY_API_KEY=<api_key>
-CLOUDINARY_API_SECRET=<api_secret>
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
 
-# Business Logic
 COMMISSION_RATE_DEFAULT=10
+PAYMENT_GATEWAY_KEY=
+```
+
+Boot backend:
+
+```bash
+npm run dev
+```
+
+Seeders:
+
+```bash
+npm run create-super-admin
+npm run seed
+```
+
+### 2) Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend environment (`frontend/.env` optional):
+
+```env
+VITE_BACKEND_URL=http://localhost:5001
 ```
 
 ---
 
-## 📡 API Reference
+## Scripts
 
-Base URL: `http://localhost:5001/api`
+### Backend (`backend/package.json`)
 
-### System & Health
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | **Enhanced**: Returns status of all microservices, Redis, Jobs, and Event Bus |
-| `GET` | `/events/log` | **New**: View recent event bus activity (Admin only) |
+- `npm run dev` - start API in watch mode
+- `npm start` - start API
+- `npm run seed` - seed baseline sample data
+- `npm run create-super-admin` - bootstrap super admin account
+- `npm run migrate:permissions` - normalize legacy permission keys
+- `npm run test:rbac-regression` - RBAC regression checks
+- `npm run test:frontend-smoke` - critical FE/API contract smoke checks
 
-### 🔐 Auth & Permissions (New)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/permissions` | List all role permissions |
-| `PUT` | `/permissions/:role` | Update dynamic permissions for a role |
-| `POST` | `/permissions/reset` | Reset permissions to system defaults |
+### Frontend (`frontend/package.json`)
 
-### 📂 File Uploads (New)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/uploads/single` | Upload a single file (Cloudinary) |
-| `GET` | `/uploads/:resourceType/:id` | Get files attached to a resource |
-| `DELETE` | `/uploads/:id` | Delete a file |
+- `npm run dev` - start Vite dev server
+- `npm run build` - production build
+- `npm run preview` - preview production build locally
 
-### 📊 Analytics & Reporting (New)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/dashboard/analytics` | Advanced analytics data |
-| `GET` | `/audit-logs` | View system audit trail |
+### Additional Utility Scripts
 
-*(Standard CRUD endpoints for Agents, Customers, Bookings, Payments, etc. are also available)*
+Located in `backend/scripts`:
+
+- `test-api.js`
+- `test-rbac.js`
+- `test-comprehensive.js`
+- `test-steps-7-10.js`
 
 ---
 
-## 🏢 Microservice Simulation
+## QA and Validation Strategy
 
-The system simulates a microservice environment to demonstrate scalability patterns:
-1.  **Service Isolation**: Each logic domain (Auth, Booking, etc.) is encapsulated in its own directory with a dedicated facade.
-2.  **Event-Driven**: Services do not import each other directly for side effects. Instead, they emit events (e.g., `PAYMENT_COMPLETED`) via the `EventBus`. Other services subscribe to these events to react (e.g., Notification Service sends an email, Booking Service updates status).
-3.  **Discovery**: The `ServiceRegistry` tracks which services are active and exposing routes.
+Current suite includes:
 
----
+- RBAC negative and positive path checks.
+- Frontend-critical API contract checks:
+  - login payload shape
+  - permissions bootstrap (`/permissions/me`)
+  - upload contract (`linkedModel`, `linkedId`)
+  - filter parameter wiring for bookings/leads
+- End-to-end style endpoint sweeps for operations sanity.
 
-## ⚡ Background Jobs
-
-### Cron Jobs (node-cron)
-| Job Name | Schedule | Description |
-|----------|----------|-------------|
-| `Booking Reminder` | 09:00 Daily | Finds bookings starting in 7 days and triggers notifications. |
-| `Stale Lead Cleanup` | 00:00 Daily | Marks leads with no activity > 30 days as 'Lost'. |
-| `Commission Calc` | Hourly | Checks completed bookings and generates missing commissions. |
-| `Daily Snapshot` | 23:00 Daily | Aggregates system stats (Revenue, Leads, Bookings) for historical analytics. |
-
-### Message Queues (Bull)
-| Queue | Processor | Function |
-|-------|-----------|----------|
-| `emailQueue` | `emailProcessor` | Handles sending transactional emails (Welcome, Itinerary, Reset Password) with retry logic. |
-| `reportQueue` | `reportProcessor` | Generates heavy PDF/Excel reports in the background. |
+For CI hardening, recommended next step is converting script-based checks into a formal test runner and adding deterministic test fixtures.
 
 ---
 
-## 🛡️ Security
+## Operational Diagnostics
 
-The platform implements **6 layers of security** for every API request:
-1.  **JWT Validation**: Token authentication via `auth.js`.
-2.  **Account Status**: Checks if account is active/approved.
-3.  **Role-Based Access**: Route-level role checks via `authorize()`.
-4.  **Dynamic Permission Checks**: DB-backed permission validation (cached in Redis).
-5.  **Resource Ownership**: Ensures users access only their own resources.
-6.  **Hierarchy Validation**: Enforces role assignment rules (e.g., Agent cannot promote to Admin).
+### Health Endpoint
+
+`GET /api/health` reports:
+
+- service registry summary + service health
+- redis connectivity state
+- job subsystem state
+- event bus subscriptions + recent events
+
+### Cache Admin Endpoints
+
+- `GET /api/cache/status`
+- `POST /api/cache/flush`
+- `POST /api/cache/invalidate/:resource`
+
+These routes require `canManageSettings` permission.
 
 ---
 
-## 🤝 Contributing
+## Default Credentials (Seeded)
 
-1.  Fork the repository
-2.  Create your feature branch (`git checkout -b feature/amazing-feature`)
-3.  Commit your changes (`git commit -m 'Add amazing feature'`)
-4.  Push to the branch (`git push origin feature/amazing-feature`)
-5.  Open a Pull Request
+From seeders:
+
+- Super Admin: `superadmin@travelplatform.com` / `SuperAdmin@123456`
+- Admin: `admin@travelplatform.com` / `Admin@123456`
+- Senior Agent: `rahul@travelagency.com` / `Agent@123456`
+- Agent: `priya@travelagency.com` / `Agent@123456`
+
+Change credentials immediately after bootstrapping in shared or remote environments.
 
 ---
 
-<div align="center">
+## Design Intent
 
-**Built by Akash Sharma**
+This codebase is optimized for **business rule integrity and extensibility** over demo-level simplicity:
 
-</div>
+- Explicit role and permission contracts.
+- Strong auditability around critical changes.
+- Service boundaries ready for future decomposition.
+- Practical reliability patterns (cache fallback, queue fallback, delayed skeleton UX).
+
+If you are evaluating this repository, focus on:
+
+1. RBAC correctness and hierarchy enforcement.
+2. API contract consistency (`response.data.data` shape and pagination envelope).
+3. Decoupling strategy (service facades + event bus).
+4. Operational resilience under partial dependency outages.
