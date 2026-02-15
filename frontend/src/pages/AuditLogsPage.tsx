@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { auditService, AuditLog } from '../services/auditService';
+import { Skeleton } from '../components/Skeleton';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import { format } from 'date-fns';
 import { Eye, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -16,6 +19,9 @@ const AuditLogsPage: React.FC = () => {
     const [resourceFilter, setResourceFilter] = useState('');
     const [severityFilter, setSeverityFilter] = useState('');
     const [userSearch, setUserSearch] = useState('');
+    const debouncedActionFilter = useDebouncedValue(actionFilter, 200);
+    const debouncedUserSearch = useDebouncedValue(userSearch, 200);
+    const showSlowSkeleton = useDelayedLoading(loading, 400);
 
     const fetchLogs = async () => {
         try {
@@ -23,14 +29,14 @@ const AuditLogsPage: React.FC = () => {
             const params = {
                 page,
                 limit: 20,
-                action: actionFilter || undefined,
+                action: debouncedActionFilter || undefined,
                 resourceType: resourceFilter || undefined,
                 severity: severityFilter || undefined,
-                performedBy: userSearch || undefined // backend expects ID, but here we simulate simplistic filtering
+                performedBy: debouncedUserSearch || undefined // backend expects ID, but here we simulate simplistic filtering
             };
 
             const data = await auditService.getAll(params);
-            setLogs(data.data);
+            setLogs(data.logs);
             setTotalPages(data.pagination.totalPages);
         } catch (error) {
             toast.error('Failed to load audit logs');
@@ -40,11 +46,8 @@ const AuditLogsPage: React.FC = () => {
     };
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchLogs();
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [page, actionFilter, resourceFilter, severityFilter, userSearch]);
+        fetchLogs();
+    }, [page, debouncedActionFilter, resourceFilter, severityFilter, debouncedUserSearch]);
 
     const getSeverityColor = (severity: string) => {
         switch (severity) {
@@ -134,12 +137,25 @@ const AuditLogsPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {loading ? (
-                            <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                                </td>
-                            </tr>
+                        {loading && logs.length === 0 ? (
+                            showSlowSkeleton ? (
+                                Array.from({ length: 8 }).map((_, index) => (
+                                    <tr key={`skeleton-${index}`}>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-28" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-40" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-36" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                                        <td className="px-6 py-4 text-right"><Skeleton className="h-8 w-8 rounded-full ml-auto" /></td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-4">
+                                        <div className="h-10" />
+                                    </td>
+                                </tr>
+                            )
                         ) : logs.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="px-6 py-10 text-center text-gray-500">

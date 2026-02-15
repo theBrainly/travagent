@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { agentAPI } from '../services/api';
+import { Skeleton } from '../components/Skeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import {
     UserCheck, UserX, Clock, Search, RefreshCw, Loader2,
     Mail, Phone, Building2, Calendar, ChevronDown, ChevronUp, AlertCircle
@@ -31,12 +33,13 @@ export default function AgentApprovalsPage() {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState('');
     const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
+    const showSlowSkeleton = useDelayedLoading(loading, 400);
 
     const fetchPending = async () => {
         setLoading(true);
         try {
             const res = await agentAPI.getPending();
-            setAgents(res.data.data?.agents || []);
+            setAgents(res.data.data.agents || []);
         } catch {
             toast.error('Failed to fetch pending agents');
         } finally {
@@ -130,11 +133,31 @@ export default function AgentApprovalsPage() {
             </div>
 
             {/* Loading */}
-            {loading ? (
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-sky-500" />
-                    <span className="ml-3 text-gray-500">Loading pending requests...</span>
-                </div>
+            {loading && agents.length === 0 ? (
+                showSlowSkeleton ? (
+                    <div className="space-y-4">
+                        {Array.from({ length: 5 }).map((_, index) => (
+                            <div key={index} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-start gap-4 flex-1">
+                                        <Skeleton className="w-12 h-12 rounded-xl" />
+                                        <div className="space-y-2 flex-1">
+                                            <Skeleton className="h-5 w-52" />
+                                            <Skeleton className="h-4 w-64" />
+                                            <Skeleton className="h-4 w-56" />
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Skeleton className="h-9 w-24 rounded-lg" />
+                                        <Skeleton className="h-9 w-24 rounded-lg" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="h-24" />
+                )
             ) : filtered.length === 0 ? (
                 <div className="text-center py-20">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">

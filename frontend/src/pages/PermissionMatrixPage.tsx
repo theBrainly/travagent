@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { permissionAPI } from '../services/api';
 import type { Permission } from '../types';
+import { Skeleton } from '../components/Skeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import { Loader2, Save, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -9,6 +11,7 @@ export function PermissionMatrixPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [permissionKeys, setPermissionKeys] = useState<string[]>([]);
+    const showSlowSkeleton = useDelayedLoading(loading, 400);
 
     useEffect(() => {
         loadPermissions();
@@ -18,7 +21,7 @@ export function PermissionMatrixPage() {
         setLoading(true);
         try {
             const res = await permissionAPI.getAll();
-            const data = res.data.data || res.data || [];
+            const data = res.data.data.permissions;
             const perms = Array.isArray(data) ? data : [];
             setPermissions(perms);
 
@@ -90,8 +93,28 @@ export function PermissionMatrixPage() {
         return roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role);
     });
 
-    if (loading) {
-        return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+    if (loading && permissions.length === 0) {
+        if (!showSlowSkeleton) {
+            return <div className="h-24" />;
+        }
+
+        return (
+            <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <Skeleton className="h-7 w-52" />
+                        <Skeleton className="h-4 w-56 mt-2" />
+                    </div>
+                    <Skeleton className="h-10 w-32 rounded-xl" />
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                    {Array.from({ length: 10 }).map((_, index) => (
+                        <Skeleton key={index} className="h-12 w-full rounded-lg" />
+                    ))}
+                </div>
+            </div>
+        );
     }
 
     return (

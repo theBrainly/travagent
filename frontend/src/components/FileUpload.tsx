@@ -12,6 +12,10 @@ interface FileUploadProps {
     className?: string;
     existingFiles?: Document[];
     onDelete?: (id: string) => void;
+    deferUpload?: boolean;
+    queuedFiles?: File[];
+    onFilesSelected?: (files: File[]) => void;
+    onRemoveQueuedFile?: (index: number) => void;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
@@ -21,7 +25,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     allowMultiple = false,
     className = '',
     existingFiles = [],
-    onDelete
+    onDelete,
+    deferUpload = false,
+    queuedFiles = [],
+    onFilesSelected,
+    onRemoveQueuedFile
 }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -56,6 +64,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             return;
         }
 
+        if (deferUpload) {
+            onFilesSelected?.(files);
+            toast.success(`${files.length} file${files.length > 1 ? 's' : ''} selected`);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
+        if (!linkedTo?.model || !linkedTo?.documentId) {
+            toast.error('Please save this record first, then upload files.');
+            return;
+        }
+
         setUploading(true);
         try {
             let res;
@@ -65,7 +85,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 res = await uploadAPI.uploadSingle(files[0], category, linkedTo);
             }
 
-            const newDocs = res.data.data || res.data.documents || (Array.isArray(res.data) ? res.data : [res.data]);
+            const payload = res.data.data;
+            const newDocs = allowMultiple ? (payload?.documents || []) : (payload?.document ? [payload.document] : []);
             toast.success('Upload successful');
             if (onUploadComplete) {
                 onUploadComplete(Array.isArray(newDocs) ? newDocs : [newDocs]);
@@ -123,6 +144,39 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                     </div>
                 </div>
             </div>
+
+            {deferUpload && queuedFiles.length > 0 && (
+                <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Selected Files (Pending Upload)</h4>
+                    <div className="space-y-2">
+                        {queuedFiles.map((file, index) => (
+                            <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                                        <FileText className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            <span>{(file.size / 1024).toFixed(1)} KB</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {onRemoveQueuedFile && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); onRemoveQueuedFile(index); }}
+                                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                                        title="Remove"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {existingFiles.length > 0 && (
                 <div className="space-y-2">

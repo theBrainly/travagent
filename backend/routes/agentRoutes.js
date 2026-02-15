@@ -11,7 +11,7 @@ router.get('/', authorize('super_admin', 'admin'), checkPermission('canViewAllAg
 router.get('/pending', authorize('super_admin', 'admin'), checkPermission('canApproveAgents'), ctrl.getPendingAgents);
 router.patch('/:id/approve', authorize('super_admin', 'admin'), checkPermission('canApproveAgents'), ctrl.approveAgent);
 router.patch('/:id/reject', authorize('super_admin', 'admin'), checkPermission('canApproveAgents'), ctrl.rejectAgent);
-router.patch('/:id/role', authorize('super_admin', 'admin'), validateRoleChange(), ctrl.updateAgentRole);
+router.patch('/:id/role', authorize('super_admin', 'admin', 'senior_agent'), checkPermission('canManageTeam'), validateRoleChange(), ctrl.updateAgentRole);
 router.patch('/:id/deactivate', authorize('super_admin', 'admin'), ctrl.deactivateAgent);
 router.patch('/:id/activate', authorize('super_admin', 'admin'), ctrl.activateAgent);
 router.route('/:id').get(authorizeOwnerOrHigher(), ctrl.getAgent).put(authorizeOwnerOrHigher(), ctrl.updateAgent);

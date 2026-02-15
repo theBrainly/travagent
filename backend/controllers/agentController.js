@@ -92,6 +92,12 @@ exports.updateAgentRole = async (req, res, next) => {
     const target = await Agent.findById(req.params.id);
     if (!target) return ApiResponse.error(res, 'Agent not found', 404);
     if (req.params.id === req.agent._id.toString()) return ApiResponse.error(res, 'Cannot change own role', 403);
+
+    // Senior agents can only manage members of their own team.
+    if (req.agent.role === 'senior_agent' && target.teamLead?.toString() !== req.agent._id.toString()) {
+      return ApiResponse.error(res, 'Senior agents can only change roles within their own team', 403);
+    }
+
     if (getRoleLevel(target.role) >= getRoleLevel(req.agent.role))
       return ApiResponse.error(res, `Cannot modify '${target.role}' - same or higher level`, 403);
     if (getRoleLevel(newRole) >= getRoleLevel(req.agent.role))

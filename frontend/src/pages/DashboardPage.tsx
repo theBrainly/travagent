@@ -12,9 +12,10 @@ import {
   CheckCircle2,
   XCircle,
   ArrowUpRight,
-  Loader2,
   XCircle as CloseIcon
 } from 'lucide-react';
+import { Skeleton } from '../components/Skeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import {
   BarChart,
   Bar,
@@ -34,6 +35,7 @@ export function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const showSlowSkeleton = useDelayedLoading(loading, 400);
 
   // Filters
   const [period, setPeriod] = useState('30d');
@@ -78,19 +80,37 @@ export function DashboardPage() {
         leadFunnel: []
       };
 
+      if (statsRes.status === 'fulfilled') {
+        // Basic dashboard payload contains totalCommission and core cards
+        dashboardData = { ...dashboardData, ...statsRes.value.data.data };
+      }
+
       if (overviewRes.status === 'fulfilled') {
-        // Prefer the enhanced analytics overview if available
-        dashboardData = { ...dashboardData, ...(overviewRes.value.data.data || overviewRes.value.data) };
-      } else if (statsRes.status === 'fulfilled') {
-        // Fallback to basic stats
-        dashboardData = { ...dashboardData, ...(statsRes.value.data.data || statsRes.value.data) };
+        // Enhanced analytics payload uses revenueTrend key; map into revenueByMonth contract
+        const overview = overviewRes.value.data.data;
+        const mappedRevenueByMonth = Array.isArray(overview.revenueByMonth)
+          ? overview.revenueByMonth
+          : Array.isArray(overview.revenueTrend)
+            ? overview.revenueTrend.map((row: any) => ({
+              year: row?._id?.year,
+              month: row?._id?.month,
+              totalRevenue: row?.totalRevenue ?? row?.revenue ?? 0,
+              bookingCount: row?.bookingCount ?? row?.count ?? 0
+            }))
+            : [];
+
+        dashboardData = {
+          ...dashboardData,
+          ...overview,
+          revenueByMonth: mappedRevenueByMonth
+        };
       }
 
       setStats(dashboardData);
 
       // Handle Recent Bookings
       if (recentRes.status === 'fulfilled') {
-        setRecentBookings(recentRes.value.data?.data || recentRes.value.data?.bookings || recentRes.value.data || []);
+        setRecentBookings(recentRes.value.data.data || []);
       }
     } catch (error) {
       console.error('Failed to load dashboard:', error);
@@ -118,10 +138,30 @@ export function DashboardPage() {
 
   const revenueData = stats?.revenueByMonth || [];
 
-  if (loading) {
+  if (loading && !stats && recentBookings.length === 0) {
+    if (!showSlowSkeleton) {
+      return <div className="h-24" />;
+    }
+
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-sky-500" />
+      <div className="space-y-6">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-52 mt-2" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm space-y-3">
+              <Skeleton className="w-10 h-10 rounded-lg" />
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="lg:col-span-2 h-80 rounded-xl" />
+          <Skeleton className="h-80 rounded-xl" />
+        </div>
       </div>
     );
   }

@@ -46,16 +46,19 @@ export const auditService = {
         }
         const query = new URLSearchParams(cleanParams).toString();
         const response = await api.get<{ data: AuditLog[]; pagination: any }>(`/audit-logs?${query}`);
-        return response.data;
+        return {
+            logs: response.data.data,
+            pagination: response.data.pagination
+        };
     },
 
     getStats: async () => {
-        const response = await api.get<AuditStats>('/audit-logs/stats');
-        return response.data;
+        const response = await api.get<{ data: AuditStats }>('/audit-logs/stats');
+        return response.data.data;
     },
 
     getById: async (id: string) => {
-        const response = await api.get<{ auditLog: AuditLog }>(`/audit-logs/${id}`);
-        return response.data;
+        const response = await api.get<{ data: { auditLog: AuditLog } }>(`/audit-logs/${id}`);
+        return response.data.data;
     }
 };

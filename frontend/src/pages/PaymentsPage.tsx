@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { paymentAPI, bookingAPI } from '../services/api';
 import type { Payment, Booking } from '../types';
 import { Modal } from '../components/Modal';
+import { Skeleton } from '../components/Skeleton';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import { Plus, Search, Loader2, CreditCard, CheckCircle2, Clock, XCircle, RefreshCw, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -19,6 +22,8 @@ export function PaymentsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 200);
+  const showSlowSkeleton = useDelayedLoading(loading, 400);
   const [statusFilter, setStatusFilter] = useState('All');
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({
@@ -26,17 +31,14 @@ export function PaymentsPage() {
   });
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadData();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search, statusFilter]);
+    loadData();
+  }, [debouncedSearch, statusFilter]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const params = {
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter !== 'All' ? statusFilter : undefined,
       };
 
@@ -46,11 +48,11 @@ export function PaymentsPage() {
       ]);
 
       if (pRes.status === 'fulfilled') {
-        const data = pRes.value.data?.data || pRes.value.data?.payments || [];
+        const data = pRes.value.data.data;
         setPayments(Array.isArray(data) ? data : []);
       }
       if (bRes.status === 'fulfilled') {
-        const data = bRes.value.data?.data || bRes.value.data?.bookings || [];
+        const data = bRes.value.data.data;
         setBookings(Array.isArray(data) ? data : []);
       }
     } catch {
@@ -107,8 +109,36 @@ export function PaymentsPage() {
   const totalCompleted = payments.filter(p => p.status === 'completed').reduce((s, p) => s + (p.amount || 0), 0);
   const totalPending = payments.filter(p => p.status === 'pending' || p.status === 'processing').reduce((s, p) => s + (p.amount || 0), 0);
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (loading && payments.length === 0) {
+    if (!showSlowSkeleton) {
+      return <div className="h-24" />;
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <Skeleton className="h-7 w-28" />
+            <Skeleton className="h-4 w-28 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-36 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-24 rounded-xl" />
+          ))}
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Skeleton className="h-10 flex-1 rounded-xl" />
+          <Skeleton className="h-10 w-full sm:w-44 rounded-xl" />
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

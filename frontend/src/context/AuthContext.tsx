@@ -23,6 +23,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<Permission['permissions'] | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchPermissions = async () => {
+    try {
+      const res = await permissionAPI.getMy();
+      const permData = res.data.data;
+      if (permData?.permissions) {
+        setPermissions(permData.permissions);
+      } else {
+        setPermissions(null);
+      }
+    } catch (e) {
+      console.error('Failed to fetch permissions', e);
+      setPermissions(null);
+    }
+  };
+
   useEffect(() => {
     const initAuth = async () => {
       const savedToken = localStorage.getItem('token');
@@ -34,19 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setToken(savedToken);
           setAgent(parsedAgent);
 
-          // Fetch permissions if we have an agent
-          if (parsedAgent.role) {
-            try {
-              const res = await permissionAPI.getByRole(parsedAgent.role);
-              // Handle response structure depending on API - assuming data returns the Permission doc
-              const permData = res.data?.data || res.data;
-              if (permData?.permissions) {
-                setPermissions(permData.permissions);
-              }
-            } catch (e) {
-              console.error('Failed to fetch permissions', e);
-            }
-          }
+          await fetchPermissions();
         } catch {
           localStorage.removeItem('token');
           localStorage.removeItem('agent');
@@ -64,18 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', newToken);
     localStorage.setItem('agent', JSON.stringify(newAgent));
 
-    // Fetch permissions on login
-    if (newAgent.role) {
-      try {
-        const res = await permissionAPI.getByRole(newAgent.role);
-        const permData = res.data?.data || res.data;
-        if (permData?.permissions) {
-          setPermissions(permData.permissions);
-        }
-      } catch (e) {
-        console.error('Failed to fetch permissions', e);
-      }
-    }
+    await fetchPermissions();
   };
 
   const logout = () => {

@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { leadAPI } from '../services/api';
 import type { Lead } from '../types';
 import { Modal } from '../components/Modal';
-import { Plus, Search, Edit2, Trash2, Loader2, UserPlus, ArrowRight, Filter, MessageSquare, MapPin, Calendar, DollarSign, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Skeleton } from '../components/Skeleton';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
+import { Plus, Search, Edit2, Trash2, UserPlus, ArrowRight, Filter, MessageSquare, MapPin, Calendar, DollarSign, ChevronDown, ChevronUp, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const statusConfig: Record<string, { color: string; bg: string }> = {
@@ -23,6 +26,8 @@ export function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 200);
+  const showSlowSkeleton = useDelayedLoading(loading, 400);
   const [statusFilter, setStatusFilter] = useState('All');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Lead | null>(null);
@@ -46,22 +51,19 @@ export function LeadsPage() {
   });
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadLeads();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search, statusFilter, filters]);
+    loadLeads();
+  }, [debouncedSearch, statusFilter, filters]);
 
   const loadLeads = async () => {
     setLoading(true);
     try {
       const params: Record<string, any> = {
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter !== 'All' ? statusFilter : undefined,
         source: filters.source || undefined,
         priority: filters.priority || undefined,
-        startDate: filters.createdFrom || undefined,
-        endDate: filters.createdTo || undefined,
+        createdFrom: filters.createdFrom || undefined,
+        createdTo: filters.createdTo || undefined,
         sortBy: filters.sortBy,
         sortOrder: filters.sortOrder,
         page: 1,
@@ -72,7 +74,7 @@ export function LeadsPage() {
       Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
 
       const res = await leadAPI.getAll(params);
-      const data = res.data?.data || res.data?.leads || (Array.isArray(res.data) ? res.data : []);
+      const data = res.data.data;
       setLeads(Array.isArray(data) ? data : []);
     } catch {
       toast.error('Failed to load leads');
@@ -188,8 +190,46 @@ export function LeadsPage() {
   // Removed client-side filtering variable 'filtered'
   // using 'leads' state directly which is now filtered from server
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (loading && leads.length === 0) {
+    if (!showSlowSkeleton) {
+      return <div className="h-24" />;
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <Skeleton className="h-7 w-24" />
+            <Skeleton className="h-4 w-24 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-36 rounded-xl" />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Skeleton className="h-10 flex-1 rounded-xl" />
+          <Skeleton className="h-10 w-full sm:w-44 rounded-xl" />
+          <Skeleton className="h-10 w-full sm:w-28 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-20 rounded-xl" />
+          ))}
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+                <Skeleton className="h-9 w-28 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

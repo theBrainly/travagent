@@ -51,7 +51,6 @@ agentSchema.virtual('teamMembers', {
   ref: 'Agent', localField: '_id', foreignField: 'teamLead', justOne: false
 });
 
-agentSchema.index({ email: 1 });
 agentSchema.index({ role: 1, isActive: 1 });
 agentSchema.index({ teamLead: 1 });
 

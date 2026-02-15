@@ -1,57 +1,67 @@
 import { useState, useEffect } from 'react';
-import { commissionAPI, bookingAPI } from '../services/api';
+import { commissionAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import type { Commission, Booking } from '../types';
-import { Loader2, DollarSign, CheckCircle2, Clock, XCircle, TrendingUp, Search, Filter } from 'lucide-react';
+import { Skeleton } from '../components/Skeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
+import { DollarSign, CheckCircle2, Clock, XCircle, TrendingUp, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function CommissionsPage() {
-  const { agent } = useAuth();
+  const { agent, checkPermission } = useAuth();
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
+  const showSlowSkeleton = useDelayedLoading(loading, 400);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
 
-  useEffect(() => { loadCommissions(); }, []);
+  const canApproveCommissions = checkPermission('canApproveCommissions');
+
+  useEffect(() => {
+    loadCommissions();
+  }, [agent?._id, canApproveCommissions, page, statusFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
 
   const loadCommissions = async () => {
     setLoading(true);
     try {
-      let data: Commission[] = [];
-      try {
-        const res = agent?._id
-          ? await commissionAPI.getByAgent(agent._id)
-          : await commissionAPI.getAll();
-        data = res.data?.data?.commissions || res.data?.data || res.data?.commissions || res.data || [];
-      } catch {
-        const res = await commissionAPI.getAll();
-        data = res.data?.data?.commissions || res.data?.data || res.data?.commissions || res.data || [];
-      }
+      const params: Record<string, any> = {
+        page,
+        limit: 10,
+        status: statusFilter !== 'All' ? statusFilter : undefined
+      };
+
+      const res = canApproveCommissions
+        ? await commissionAPI.getAll(params)
+        : await commissionAPI.getByAgent(agent?._id || '', params);
+
+      const data: Commission[] = res.data.data;
       setCommissions(Array.isArray(data) ? data : []);
+      setTotalPages(res.data.pagination?.totalPages || 1);
+      setTotalRecords(res.data.pagination?.totalRecords || (Array.isArray(data) ? data.length : 0));
     } catch {
-      // If commission API doesn't exist, compute from bookings
-      try {
-        const res = await bookingAPI.getAll();
-        const bookings: Booking[] = res.data?.bookings || res.data || [];
-        const computed: Commission[] = (Array.isArray(bookings) ? bookings : [])
-          .filter((b: Booking) => b.status === 'confirmed' || b.status === 'completed')
-          .map((b: Booking) => ({
-            _id: b._id,
-            agent: typeof b.agent === 'string' ? b.agent : (b.agent as { _id: string })?._id || '',
-            booking: b,
-            bookingAmount: b.pricing?.totalAmount || 0,
-            commissionRate: 10,
-            commissionAmount: (b.pricing?.totalAmount || 0) * 0.1,
-            totalEarning: (b.pricing?.totalAmount || 0) * 0.1,
-            status: b.status === 'completed' ? 'paid' as const : 'pending' as const,
-            createdAt: b.createdAt,
-          }));
-        setCommissions(computed);
-      } catch {
-        setCommissions([]);
-      }
+      setCommissions([]);
+      setTotalPages(1);
+      setTotalRecords(0);
+      toast.error('Failed to load commissions');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    try {
+      await commissionAPI.approve(id);
+      toast.success('Commission approved');
+      loadCommissions();
+    } catch {
+      toast.error('Failed to approve commission');
     }
   };
 
@@ -76,8 +86,7 @@ export function CommissionsPage() {
 
   const filtered = commissions.filter(c => {
     const matchSearch = getBookingDest(c.booking).toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'All' || c.status === statusFilter;
-    return matchSearch && matchStatus;
+    return matchSearch;
   });
 
   const statusStyles: Record<string, { icon: React.ReactNode; color: string }> = {
@@ -88,8 +97,33 @@ export function CommissionsPage() {
     on_hold: { icon: <Clock className="w-3.5 h-3.5" />, color: 'bg-gray-100 text-gray-700' },
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (loading && commissions.length === 0) {
+    if (!showSlowSkeleton) {
+      return <div className="h-24" />;
+    }
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-7 w-36" />
+          <Skeleton className="h-4 w-56 mt-2" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Skeleton className="h-10 flex-1 rounded-xl" />
+          <Skeleton className="h-10 w-full sm:w-40 rounded-xl" />
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -172,7 +206,13 @@ export function CommissionsPage() {
                       </td>
                       <td className="px-5 py-3 text-gray-500">{commission.createdAt ? new Date(commission.createdAt).toLocaleDateString() : '-'}</td>
                       <td className="px-5 py-3">
-                        {commission.status === 'pending' && (
+                        {canApproveCommissions && commission.status === 'pending' && (
+                          <button onClick={() => handleApprove(commission._id)}
+                            className="text-xs text-blue-600 hover:text-blue-700 font-medium bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
+                            Approve
+                          </button>
+                        )}
+                        {canApproveCommissions && commission.status === 'approved' && (
                           <button onClick={() => handleMarkPaid(commission._id)}
                             className="text-xs text-emerald-600 hover:text-emerald-700 font-medium bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors">
                             Mark Paid
@@ -191,6 +231,28 @@ export function CommissionsPage() {
           <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <h3 className="text-gray-500 font-medium">No commissions yet</h3>
           <p className="text-sm text-gray-400 mt-1">Commissions are generated from confirmed bookings</p>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1 || loading}
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-gray-600">
+            Page {page} of {totalPages} ({totalRecords})
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages || loading}
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white disabled:opacity-50"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>

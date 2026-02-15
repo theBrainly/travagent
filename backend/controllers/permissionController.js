@@ -37,6 +37,21 @@ exports.getRolePermissions = async (req, res, next) => {
 };
 
 /**
+ * Get permissions for currently authenticated user role
+ * GET /api/permissions/me
+ */
+exports.getMyPermissions = async (req, res, next) => {
+    try {
+        const role = req.agent?.role;
+        if (!role) return ApiResponse.error(res, 'Role not found for authenticated user', 400);
+        const permissions = await PermissionService.getPermissions(role);
+        ApiResponse.success(res, { role, permissions });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * Update permissions for a role
  * PUT /api/permissions/:role
  * Body: { permission1: true/false, permission2: true/false, ... }
@@ -44,7 +59,7 @@ exports.getRolePermissions = async (req, res, next) => {
 exports.updateRolePermissions = async (req, res, next) => {
     try {
         const { role } = req.params;
-        const updates = req.body;
+        const updates = PermissionService.extractUpdates(req.body);
 
         const validRoles = ['super_admin', 'admin', 'senior_agent', 'agent', 'junior_agent'];
         if (!validRoles.includes(role)) {

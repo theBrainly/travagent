@@ -85,6 +85,11 @@ exports.uploadMultiple = async (req, res, next) => {
             return ApiResponse.error(res, 'linkedModel and linkedId are required', 400);
         }
 
+        const validModels = ['Booking', 'Customer', 'Itinerary', 'Agent'];
+        if (!validModels.includes(linkedModel)) {
+            return ApiResponse.error(res, `linkedModel must be one of: ${validModels.join(', ')}`, 400);
+        }
+
         const documents = [];
 
         for (const file of req.files) {

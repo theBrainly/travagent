@@ -21,7 +21,7 @@ router.post('/login', [
 ], ctrl.login);
 
 router.post('/admin/create-agent',
-  protect, authorize('super_admin', 'admin'), checkPermission('canApproveAgents'),
+  protect, authorize('super_admin', 'admin', 'senior_agent'), checkPermission('canManageTeam'),
   [
     body('firstName').trim().notEmpty(), body('lastName').trim().notEmpty(),
     body('email').isEmail(), body('password').isLength({ min: 8 }),

@@ -4,15 +4,21 @@ import { customerAPI, uploadAPI } from '../services/api';
 import type { Customer, Document } from '../types';
 import { Modal } from '../components/Modal';
 import { FileUpload } from '../components/FileUpload';
-import { Plus, Search, Edit2, Trash2, Loader2, Users, Mail, Phone, Globe } from 'lucide-react';
+import { Skeleton } from '../components/Skeleton';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
+import { Plus, Search, Edit2, Trash2, Users, Mail, Phone, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function CustomersPage() {
   const { checkPermission } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 200);
+  const showSlowSkeleton = useDelayedLoading(loading, 400);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState({
@@ -20,16 +26,13 @@ export function CustomersPage() {
   });
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadCustomers();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search]);
+    loadCustomers();
+  }, [debouncedSearch]);
 
   const loadDocuments = async (customerId: string) => {
     try {
       const res = await uploadAPI.getByResource('Customer', customerId);
-      const docs = res.data.data || res.data.documents || (Array.isArray(res.data) ? res.data : []);
+      const docs = res.data.data.documents || [];
       setDocuments(Array.isArray(docs) ? docs : []);
     } catch {
       console.error('Failed to load documents');
@@ -39,11 +42,9 @@ export function CustomersPage() {
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const params = search ? { search } : undefined;
+      const params = debouncedSearch ? { search: debouncedSearch } : undefined;
       const res = await customerAPI.getAll(params);
-      console.log('API Response:', res.data); // Debug log
-      const data = res.data?.data?.docs || res.data?.data || res.data?.customers || res.data || [];
-      console.log('Parsed Customers Data:', data); // Debug log
+      const data = res.data.data;
       setCustomers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading customers:', error);
@@ -56,12 +57,14 @@ export function CustomersPage() {
   const openCreate = () => {
     setEditing(null);
     setDocuments([]);
+    setPendingFiles([]);
     setForm({ firstName: '', lastName: '', email: '', phone: '', address: '', passport_number: '', nationality: '', date_of_birth: '', notes: '' });
     setModalOpen(true);
   };
 
   const openEdit = (c: Customer) => {
     setEditing(c);
+    setPendingFiles([]);
     loadDocuments(c._id);
     setForm({
       firstName: c.firstName || c.name?.split(' ')[0] || '',
@@ -107,10 +110,26 @@ export function CustomersPage() {
         await customerAPI.update(editing._id, payload);
         toast.success('Customer updated');
       } else {
-        await customerAPI.create(payload);
-        toast.success('Customer created');
+        const created = await customerAPI.create(payload);
+        const customerId = created?.data?.data?.customer?._id;
+
+        if (pendingFiles.length > 0 && customerId) {
+          try {
+            if (pendingFiles.length === 1) {
+              await uploadAPI.uploadSingle(pendingFiles[0], 'passport', { model: 'Customer', documentId: customerId });
+            } else {
+              await uploadAPI.uploadMultiple(pendingFiles, 'passport', { model: 'Customer', documentId: customerId });
+            }
+            toast.success(`Customer created and ${pendingFiles.length} file${pendingFiles.length > 1 ? 's' : ''} uploaded`);
+          } catch {
+            toast.error('Customer created, but file upload failed. You can upload files after opening edit.');
+          }
+        } else {
+          toast.success('Customer created');
+        }
       }
       setModalOpen(false);
+      setPendingFiles([]);
       loadCustomers();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -129,8 +148,38 @@ export function CustomersPage() {
     }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (loading && customers.length === 0) {
+    if (!showSlowSkeleton) {
+      return <div className="h-24" />;
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <Skeleton className="h-7 w-40" />
+            <Skeleton className="h-4 w-28 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-32 rounded-xl" />
+        </div>
+        <Skeleton className="h-10 w-full sm:w-80 rounded-xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <Skeleton className="h-3 w-48" />
+              <Skeleton className="h-3 w-40" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -254,9 +303,9 @@ export function CustomersPage() {
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none" placeholder="Any notes..." />
           </div>
 
-          {editing && (
-            <div className="border-t border-gray-100 pt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Documents</label>
+          <div className="border-t border-gray-100 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Documents</label>
+            {editing ? (
               <FileUpload
                 category="passport"
                 linkedTo={{ model: 'Customer', documentId: editing._id }}
@@ -265,8 +314,20 @@ export function CustomersPage() {
                 onUploadComplete={(newDocs) => setDocuments(prev => [...prev, ...newDocs])}
                 onDelete={(id) => setDocuments(prev => prev.filter(d => d._id !== id))}
               />
-            </div>
-          )}
+            ) : (
+              <>
+                <FileUpload
+                  category="passport"
+                  allowMultiple={true}
+                  deferUpload={true}
+                  queuedFiles={pendingFiles}
+                  onFilesSelected={(files) => setPendingFiles(prev => [...prev, ...files])}
+                  onRemoveQueuedFile={(index) => setPendingFiles(prev => prev.filter((_, i) => i !== index))}
+                />
+                <p className="mt-2 text-xs text-gray-500">Selected files will be uploaded automatically after customer creation.</p>
+              </>
+            )}
+          </div>
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>

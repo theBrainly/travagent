@@ -4,7 +4,10 @@ import { bookingAPI, customerAPI, uploadAPI } from '../services/api';
 import type { Booking, Customer, Document } from '../types';
 import { Modal } from '../components/Modal';
 import { FileUpload } from '../components/FileUpload';
-import { Plus, Search, Edit2, Trash2, Loader2, CalendarCheck, Clock, CheckCircle2, XCircle, Filter, MapPin, Users as UsersIcon, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Skeleton } from '../components/Skeleton';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
+import { Plus, Search, Edit2, Trash2, CalendarCheck, Clock, CheckCircle2, XCircle, Filter, MapPin, Users as UsersIcon, ChevronDown, ChevronUp, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const statusColors: Record<string, string> = {
@@ -32,8 +35,11 @@ export function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 200);
+  const showSlowSkeleton = useDelayedLoading(loading, 400);
   const [statusFilter, setStatusFilter] = useState('All');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Booking | null>(null);
@@ -57,16 +63,13 @@ export function BookingsPage() {
   });
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadData();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search, statusFilter, filters]);
+    loadData();
+  }, [debouncedSearch, statusFilter, filters]);
 
   const loadDocuments = async (bookingId: string) => {
     try {
       const res = await uploadAPI.getByResource('Booking', bookingId);
-      const docs = res.data.data || res.data.documents || (Array.isArray(res.data) ? res.data : []);
+      const docs = res.data.data.documents || [];
       setDocuments(Array.isArray(docs) ? docs : []);
     } catch {
       console.error('Failed to load documents');
@@ -77,12 +80,12 @@ export function BookingsPage() {
     setLoading(true);
     try {
       const params: Record<string, any> = {
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter !== 'All' ? statusFilter : undefined,
         destination: filters.destination || undefined,
         bookingType: filters.tripType || undefined,
-        startDate: filters.startDateFrom || undefined,
-        endDate: filters.startDateTo || undefined,
+        startDateFrom: filters.startDateFrom || undefined,
+        startDateTo: filters.startDateTo || undefined,
         minAmount: filters.minAmount || undefined,
         maxAmount: filters.maxAmount || undefined,
         sortBy: filters.sortBy,
@@ -120,12 +123,14 @@ export function BookingsPage() {
   const openCreate = () => {
     setEditing(null);
     setDocuments([]);
+    setPendingFiles([]);
     setForm({ customer_id: '', booking_type: 'package', destination: '', travel_date: '', return_date: '', num_travelers: '1', total_amount: '', status: 'pending', notes: '' });
     setModalOpen(true);
   };
 
   const openEdit = (b: Booking) => {
     setEditing(b);
+    setPendingFiles([]);
     loadDocuments(b._id);
     const custId = typeof b.customer === 'object' ? (b.customer as Customer)._id : b.customer;
     setForm({
@@ -175,10 +180,26 @@ export function BookingsPage() {
         await bookingAPI.update(editing._id, payload);
         toast.success('Booking updated');
       } else {
-        await bookingAPI.create(payload);
-        toast.success('Booking created');
+        const created = await bookingAPI.create(payload);
+        const bookingId = created?.data?.data?.booking?._id;
+
+        if (pendingFiles.length > 0 && bookingId) {
+          try {
+            if (pendingFiles.length === 1) {
+              await uploadAPI.uploadSingle(pendingFiles[0], 'booking', { model: 'Booking', documentId: bookingId });
+            } else {
+              await uploadAPI.uploadMultiple(pendingFiles, 'booking', { model: 'Booking', documentId: bookingId });
+            }
+            toast.success(`Booking created and ${pendingFiles.length} file${pendingFiles.length > 1 ? 's' : ''} uploaded`);
+          } catch {
+            toast.error('Booking created, but file upload failed. You can upload files after opening edit.');
+          }
+        } else {
+          toast.success('Booking created');
+        }
       }
       setModalOpen(false);
+      setPendingFiles([]);
       loadData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -222,8 +243,41 @@ export function BookingsPage() {
   // Removed client-side filtering variable 'filtered'
   // using 'bookings' state directly which is now filtered from server
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (loading && bookings.length === 0) {
+    if (!showSlowSkeleton) {
+      return <div className="h-24" />;
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-4 w-28 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-32 rounded-xl" />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Skeleton className="h-10 flex-1 rounded-xl" />
+          <Skeleton className="h-10 w-full sm:w-44 rounded-xl" />
+          <Skeleton className="h-10 w-full sm:w-28 rounded-xl" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-3 flex-1">
+                  <Skeleton className="h-5 w-44" />
+                  <Skeleton className="h-4 w-56" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-7 w-24 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -469,9 +523,9 @@ export function BookingsPage() {
               </select>
             </div>
           )}
-          {editing && (
-            <div className="border-t border-gray-100 pt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Documents</label>
+          <div className="border-t border-gray-100 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Documents</label>
+            {editing ? (
               <FileUpload
                 category="booking"
                 linkedTo={{ model: 'Booking', documentId: editing._id }}
@@ -480,8 +534,20 @@ export function BookingsPage() {
                 onUploadComplete={(newDocs) => setDocuments(prev => [...prev, ...newDocs])}
                 onDelete={(id) => setDocuments(prev => prev.filter(d => d._id !== id))}
               />
-            </div>
-          )}
+            ) : (
+              <>
+                <FileUpload
+                  category="booking"
+                  allowMultiple={true}
+                  deferUpload={true}
+                  queuedFiles={pendingFiles}
+                  onFilesSelected={(files) => setPendingFiles(prev => [...prev, ...files])}
+                  onRemoveQueuedFile={(index) => setPendingFiles(prev => prev.filter((_, i) => i !== index))}
+                />
+                <p className="mt-2 text-xs text-gray-500">Selected files will be uploaded automatically after booking creation.</p>
+              </>
+            )}
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
             <textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} rows={3}

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/adminService';
 import { useAuth } from '../context/AuthContext';
+import { Skeleton } from '../components/Skeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import toast from 'react-hot-toast';
 import { Database, Trash2, RefreshCw, Server } from 'lucide-react';
 
@@ -8,6 +10,8 @@ const AdminSettingsPage: React.FC = () => {
     const { agent } = useAuth();
     const [cacheStatus, setCacheStatus] = useState<{ connected: boolean; enabled: boolean } | null>(null);
     const [loading, setLoading] = useState(false);
+    const [statusLoading, setStatusLoading] = useState(true);
+    const showSlowSkeleton = useDelayedLoading(statusLoading, 400);
 
     // If user is not admin, redirect or show denied (handled by route protection usually)
     if (agent?.role !== 'admin' && agent?.role !== 'super_admin') {
@@ -16,10 +20,13 @@ const AdminSettingsPage: React.FC = () => {
 
     const checkStatus = async () => {
         try {
+            setStatusLoading(true);
             const status = await adminService.getCacheStatus();
             setCacheStatus(status);
         } catch (error) {
             console.error('Failed to get cache status');
+        } finally {
+            setStatusLoading(false);
         }
     };
 
@@ -47,6 +54,25 @@ const AdminSettingsPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900 border-b pb-4">Admin Settings</h1>
 
             {/* Redis Cache Section */}
+            {statusLoading && !cacheStatus ? (
+                showSlowSkeleton ? (
+                    <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-4">
+                        <Skeleton className="h-6 w-64" />
+                        <Skeleton className="h-4 w-80" />
+                        <div className="flex gap-2">
+                            <Skeleton className="h-6 w-24 rounded-full" />
+                            <Skeleton className="h-6 w-24 rounded-full" />
+                        </div>
+                        <div className="flex gap-4">
+                            <Skeleton className="h-10 w-36 rounded-md" />
+                            <Skeleton className="h-10 w-36 rounded-md" />
+                        </div>
+                        <Skeleton className="h-24 w-full rounded-md" />
+                    </section>
+                ) : (
+                    <div className="h-24" />
+                )
+            ) : (
             <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <div className="flex items-start justify-between">
                     <div>
@@ -102,6 +128,7 @@ const AdminSettingsPage: React.FC = () => {
                     </ul>
                 </div>
             </section>
+            )}
         </div>
     );
 };

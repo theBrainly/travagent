@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { itineraryAPI } from '../services/api';
 import type { Itinerary, ItineraryDay } from '../types';
 import { Modal } from '../components/Modal';
-import { Plus, Search, Edit2, Trash2, Loader2, Map, Clock, DollarSign, Eye, X } from 'lucide-react';
+import { Skeleton } from '../components/Skeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
+import { Plus, Search, Edit2, Trash2, Map, Clock, DollarSign, Eye, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function ItinerariesPage() {
   const [itineraries, setItineraries] = useState<Itinerary[]>([]);
   const [loading, setLoading] = useState(true);
+  const showSlowSkeleton = useDelayedLoading(loading, 400);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [viewModal, setViewModal] = useState<Itinerary | null>(null);
@@ -32,8 +35,7 @@ export function ItinerariesPage() {
     setLoading(true);
     try {
       const res = await itineraryAPI.getAll();
-      // key 'data' from ApiResponse.paginated contains the array
-      const data = res.data?.data || res.data?.itineraries || [];
+      const data = res.data.data;
       setItineraries(Array.isArray(data) ? data : []);
     } catch {
       toast.error('Failed to load itineraries');
@@ -161,8 +163,35 @@ export function ItinerariesPage() {
     modified: 'bg-amber-100 text-amber-700',
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (loading && itineraries.length === 0) {
+    if (!showSlowSkeleton) {
+      return <div className="h-24" />;
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-4 w-24 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-40 rounded-xl" />
+        </div>
+        <Skeleton className="h-10 w-full sm:w-80 rounded-xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <Skeleton className="h-32 w-full rounded-none" />
+              <div className="p-4 space-y-3">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

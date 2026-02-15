@@ -7,7 +7,10 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed": "node seeders/seed.js",
-    "create-super-admin": "node seeders/createSuperAdmin.js"
+    "create-super-admin": "node seeders/createSuperAdmin.js",
+    "migrate:permissions": "node scripts/migrate-permissions-keys.js",
+    "test:rbac-regression": "node scripts/test-rbac-regression.js",
+    "test:frontend-smoke": "node scripts/test-frontend-smoke.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

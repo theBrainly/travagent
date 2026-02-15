@@ -83,8 +83,9 @@ export const paymentAPI = {
 
 // Commissions
 export const commissionAPI = {
-  getAll: () => api.get('/commissions'),
-  getByAgent: (agentId: string) => api.get(`/commissions/agent/${agentId}`),
+  getAll: (params?: Record<string, any>) => api.get('/commissions', { params }),
+  getByAgent: (agentId: string, params?: Record<string, any>) => api.get(`/commissions/agent/${agentId}`, { params }),
+  approve: (id: string) => api.patch(`/commissions/${id}/approve`),
   markPaid: (id: string) => api.patch(`/commissions/${id}/pay`),
 };
 
@@ -119,8 +120,8 @@ export const uploadAPI = {
     formData.append('file', file);
     formData.append('category', category);
     if (linkedTo) {
-      formData.append('linkedToModel', linkedTo.model);
-      formData.append('linkedToId', linkedTo.documentId);
+      formData.append('linkedModel', linkedTo.model);
+      formData.append('linkedId', linkedTo.documentId);
     }
     return api.post('/uploads/single', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -131,8 +132,8 @@ export const uploadAPI = {
     files.forEach(file => formData.append('files', file));
     formData.append('category', category);
     if (linkedTo) {
-      formData.append('linkedToModel', linkedTo.model);
-      formData.append('linkedToId', linkedTo.documentId);
+      formData.append('linkedModel', linkedTo.model);
+      formData.append('linkedId', linkedTo.documentId);
     }
     return api.post('/uploads/multiple', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -145,8 +146,9 @@ export const uploadAPI = {
 // Permissions
 export const permissionAPI = {
   getAll: () => api.get('/permissions'),
+  getMy: () => api.get('/permissions/me'),
   getByRole: (role: string) => api.get(`/permissions/${role}`),
-  update: (role: string, permissions: Record<string, boolean>) => api.put(`/permissions/${role}`, { permissions }),
+  update: (role: string, permissions: Record<string, boolean>) => api.put(`/permissions/${role}`, permissions),
   reset: () => api.post('/permissions/reset'),
 };
 

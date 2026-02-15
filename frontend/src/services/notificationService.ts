@@ -37,21 +37,21 @@ export const notificationService = {
 
     getUnreadCount: async () => {
         const response = await api.get<{ unreadCount: number }>('/notifications/unread-count');
-        return response.data;
+        return response.data.data;
     },
 
     markAsRead: async (id: string) => {
         const response = await api.patch<{ notification: Notification }>(`/notifications/${id}/read`);
-        return response.data;
+        return response.data.data;
     },
 
     markAllAsRead: async () => {
         const response = await api.patch<{ modifiedCount: number }>('/notifications/read-all');
-        return response.data;
+        return response.data.data;
     },
 
     delete: async (id: string) => {
         const response = await api.delete(`/notifications/${id}`);
-        return response.data;
+        return response.data.data;
     }
 };

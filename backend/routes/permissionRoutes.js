@@ -11,6 +11,9 @@ router.use(protect);
 // GET all permissions — admin+ can view
 router.get('/', requireRole('super_admin', 'admin'), permissionController.getAllPermissions);
 
+// GET current user's role permissions — any authenticated user
+router.get('/me', permissionController.getMyPermissions);
+
 // GET permissions for a specific role — admin+ can view
 router.get('/:role', requireRole('super_admin', 'admin'), permissionController.getRolePermissions);
 

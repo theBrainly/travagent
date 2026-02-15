@@ -53,7 +53,10 @@ const ROLE_PERMISSIONS = {
         canViewAllLeads: true,
         canManageSettings: true,
         canViewAuditLogs: true,
-        canManageTeam: true
+        canManageTeam: true,
+        canViewAnalytics: true,
+        canUploadFiles: true,
+        canManageNotifications: true
     },
     admin: {
         canCreateAdmin: false,
@@ -74,7 +77,10 @@ const ROLE_PERMISSIONS = {
         canViewAllLeads: true,
         canManageSettings: false,
         canViewAuditLogs: true,
-        canManageTeam: true
+        canManageTeam: true,
+        canViewAnalytics: true,
+        canUploadFiles: true,
+        canManageNotifications: true
     },
     senior_agent: {
         canCreateAdmin: false,
@@ -95,7 +101,10 @@ const ROLE_PERMISSIONS = {
         canViewAllLeads: false,
         canManageSettings: false,
         canViewAuditLogs: false,
-        canManageTeam: true
+        canManageTeam: true,
+        canViewAnalytics: true,
+        canUploadFiles: true,
+        canManageNotifications: true
     },
     agent: {
         canCreateAdmin: false,
@@ -116,7 +125,10 @@ const ROLE_PERMISSIONS = {
         canViewAllLeads: false,
         canManageSettings: false,
         canViewAuditLogs: false,
-        canManageTeam: false
+        canManageTeam: false,
+        canViewAnalytics: true,
+        canUploadFiles: true,
+        canManageNotifications: true
     },
     junior_agent: {
         canCreateAdmin: false,
@@ -137,7 +149,10 @@ const ROLE_PERMISSIONS = {
         canViewAllLeads: false,
         canManageSettings: false,
         canViewAuditLogs: false,
-        canManageTeam: false
+        canManageTeam: false,
+        canViewAnalytics: true,
+        canUploadFiles: true,
+        canManageNotifications: true
     }
 };
 
